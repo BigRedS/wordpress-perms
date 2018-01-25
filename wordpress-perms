@@ -1,0 +1,157 @@
+#! /usr/bin/perl
+use strict;
+use warnings;
+
+use Getopt::Long;
+
+my $opts = {};
+GetOptions(
+	"group|g=s" => \$opts->{'group'},
+	"help|h"    => \$opts->{'help'},
+	"run|r"     => \$opts->{'run'},
+        "user|u=s"  => \$opts->{'user'},
+	"www-other" => \$opts->{'www-other'},
+	"www-user"  => \$opts->{'www-user'},
+) or die("Error in command line arguments\n");
+
+my $path = shift;
+
+if($opts->{'help'} || !$path){
+	print <<EOF;
+wordpress-perms
+
+  set (our) default filesystem permissions on a Wordpress install
+
+Usage:
+
+  wordpress-perms [options] [path]
+
+Options:
+
+  --group groupname  use group named groupname. Default is www-data
+       -g groupname
+
+  --help, -h         See this help
+
+  --run              Actually run the commands. Without this switch 
+  -r                 will only print them.
+
+  --user username    use user named username. Default is to use the 
+      -u username    second element in the given path (which is 
+                     assumed to be /home/<username>/public_html or
+                     similar.
+
+  --www-user         assume the webserver will be the user, and the 
+                     group has the SFTP users as members. This has 
+                     the effect of switching the user and group bits 
+                     in the chmods, but you need to set --user and 
+                     --group appropriately
+
+  --www-other        set the user and group permissions for the SFTP
+                     user, and leave the 'other' bits for the webserver
+                     to use. Likely unsuitable on shared hosting.
+
+Examples:
+
+  wordpress-permas /home/someone/sites/somesite.com/
+
+    will set /home/someone/sites/somesite.com/ to be owned by the 
+    user 'someone' and let www-data only write to the wp-uploads 
+    directory.
+
+  wordpress-perms --www-user --group webadmins --user www-data /var/sites/somesite.com/
+
+    will set /var/sites/somesite.com to be owned by 
+    www-data:webadmmins, but set the permissions such that the 
+    webadmins group can write anywhere, and the www-data user may
+    only write to the wp-uploads dir.
+
+  wordpress-perms --www-other --group webadmins --user www-data /var/sites/somesite.com/
+
+    will set /var/sites/somesite.com to be owned by :webadmins, 
+    and set permissions such that user and group owners may write
+    anywhere, and anyone else may read anything but only write to
+    wp-uploads.
+ 
+
+EOF
+exit;
+}
+
+
+unless(-d $path){
+	print "'$path' doesn't seem to be a directory\n";
+	exit 1;
+}
+
+if($path !~ /^\//){
+	my $pwd = `pwd`;
+	chomp $pwd;
+	$path = $pwd."/".$path;
+}
+
+unless(-f $path."/wp-config.php"){
+	print "No wp-config.php found in '$path'; are you sure this is a Wordpress install?\n";
+	exit 1;
+}
+
+my $user = $opts->{'user'} || (split("\/", $path))[2];
+my $group = $opts->{'group'} || 'www-data';
+my $wpuploads = $path."/wp-content/uploads";
+my $cgibin = $path."/cgi-bin";
+$wpuploads =~ s#//#/#g;
+$cgibin =~ s#//#/#g;
+$path =~ s#//#/#g;
+
+
+my @cmds;
+unless( -d $wpuploads ){
+	push(@cmds, "mkdir $wpuploads");
+}
+my ($wpuploads_mode,$file_mode, $dir_mode);
+if($opts->{'www-user'}){
+	$file_mode = '470';
+	$dir_mode  = '570';
+	$wpuploads_mode = 'g+s,u+rws';
+}elsif($opts->{'www-other'}){
+	$file_mode = '774';
+	$dir_mode  = '775';
+	$wpuploads_mode = 'u+rws,g+rws,o+rws';
+}else{
+	$file_mode = '740';
+	$dir_mode  = '740';
+	$wpuploads_mode = 'u+s,g+rws';
+}
+
+push(@cmds, "chown $user:$group $path -R");
+push(@cmds, "find $path -type f -exec chmod $file_mode {} ".'\;');
+push(@cmds, "find $path -type d -exec chmod $dir_mode {} ".'\;');
+push(@cmds, "chmod $wpuploads_mode $wpuploads -R");
+if( -d $cgibin ){
+	push(@cmds, "chown $user:$user $cgibin -R");
+	push(@cmds, "chmod 755 $cgibin -R");
+}
+
+
+if(!$opts->{'run'}){
+	print "# Not running commands, just printing\n";
+	print "# use -r to run the commands\n";
+	print join("\n", (@cmds));
+	print "\n";
+	exit 0;
+}
+
+my $exit =0;
+foreach(@cmds){
+	print "> $_ ...";
+	my @output = `$_`;
+	if($? == 0){ 
+		print " done\n";
+	}else{
+		$exit+=$?;
+		print "FAILED: ", @output, "\n";
+	}
+}
+
+print "\n";
+exit $exit;
