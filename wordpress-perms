@@ -53,7 +53,7 @@ Options:
 
 Examples:
 
-  wordpress-permas /home/someone/sites/somesite.com/
+  wordpress-perms /home/someone/sites/somesite.com/
 
     will set /home/someone/sites/somesite.com/ to be owned by the 
     user 'someone' and let www-data only write to the wp-uploads 
