@@ -120,7 +120,7 @@ if($opts->{'www-user'}){
 	$wpuploads_mode = 'u+rws,g+rws,o+rws';
 }else{
 	$file_mode = '740';
-	$dir_mode  = '740';
+	$dir_mode  = '750';
 	$wpuploads_mode = 'u+s,g+rws';
 }
 
