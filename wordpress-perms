@@ -98,7 +98,7 @@ unless(-f $path."/wp-config.php"){
 my $user = $opts->{'user'} || (split("\/", $path))[2];
 my $group = $opts->{'group'} || 'www-data';
 my $wpuploads = $path."/wp-content/uploads";
-my $htaccess = $path.".htaccess";
+my $htaccess = $path."/.htaccess";
 my $cgibin = $path."/cgi-bin";
 $wpuploads =~ s#//#/#g;
 $cgibin =~ s#//#/#g;
