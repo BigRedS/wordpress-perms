@@ -98,6 +98,7 @@ unless(-f $path."/wp-config.php"){
 my $user = $opts->{'user'} || (split("\/", $path))[2];
 my $group = $opts->{'group'} || 'www-data';
 my $wpuploads = $path."/wp-content/uploads";
+my $htaccess = $path.".htaccess";
 my $cgibin = $path."/cgi-bin";
 $wpuploads =~ s#//#/#g;
 $cgibin =~ s#//#/#g;
@@ -127,6 +128,9 @@ push(@cmds, "chown $user:$group $path -R");
 push(@cmds, "find $path -type f -exec chmod $file_mode {} ".'\;');
 push(@cmds, "find $path -type d -exec chmod $dir_mode {} ".'\;');
 push(@cmds, "chmod $wpuploads_mode $wpuploads -R");
+push(@cmds, "chmod 664 $htaccess");
+push(@cmds, "chmod g+rx $path");
+
 if( -d $cgibin ){
 	push(@cmds, "chown $user:$user $cgibin -R");
 	push(@cmds, "chmod 755 $cgibin -R");
